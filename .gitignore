@@ -1,2 +1,4 @@
 Superpowers/bin
 Superpowers/gen
+*.o
+*.lo

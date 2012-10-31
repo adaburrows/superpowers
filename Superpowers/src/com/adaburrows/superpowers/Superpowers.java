@@ -35,7 +35,7 @@ public class Superpowers extends Activity {
     mOverlay = new MagicOverlay(this);
     mPreview = new Preview(this, mOverlay);
     setContentView(mPreview);
-    setContentView(R.layout.main);
+    //setContentView(R.layout.main);
     addContentView(mOverlay, new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
   }
 }
