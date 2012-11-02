@@ -42,6 +42,7 @@ class CameraView extends SurfaceView implements SurfaceHolder.Callback {
   // When we go out of sight
   public void surfaceDestroyed(SurfaceHolder holder) {
     // We share the camera; but it's released in the activity
+    stopPreview(holder);
   }
 
   // On a resize
