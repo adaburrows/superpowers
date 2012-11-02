@@ -1,5 +1,6 @@
 package com.adaburrows.superpowers;
 
+import com.adaburrows.superpowers.PlaySound;
 import java.io.IOException;
 
 import android.util.Log;
@@ -20,6 +21,10 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.ViewGroup.LayoutParams;
+import android.media.AudioTrack;
+import android.media.AudioManager;
+import android.media.AudioFormat;
+
 
 class AudioSynth implements Camera.PreviewCallback {
 
@@ -34,12 +39,14 @@ class AudioSynth implements Camera.PreviewCallback {
   int[] mGreenHistogram;
   int[] mBlueHistogram;
   double[] mBinSquared;
+  AudioTrack mSynthesizer;
 
   // Constructor
-  public AudioSynth() {
+  public AudioSynth(AudioTrack synthesizer) {
     mFinished = false;
     mYUVData = null;
     mRGBData = null;
+    mSynthesizer = synthesizer;
     mRedHistogram = new int[256];
     mGreenHistogram = new int[256];
     mBlueHistogram = new int[256];
@@ -94,9 +101,46 @@ class AudioSynth implements Camera.PreviewCallback {
     // This is where you'll use imageRedMean, imageGreenMean, and imageBlueMean to 
     // construct a waveform based on the aggregate channel luminosities.
 
-    // TODO Dann: cross-modalize v->A Here.
+    double maxFreq = 5200;
+    double minFreq = 3900;
+    double volume = imageRedMean / 255;
+    double frequency = minFreq + ((maxFreq - minFreq) * volume);
+    
+    genTone(frequency, volume);
+    playSound();
 
   }
+
+  private final int sampleRate = 44100;
+  private final int duration = 1; // seconds
+  private final int numSamples = (duration * sampleRate)/5;
+  private final double sample[] = new double[numSamples];
+
+  private final byte generatedSnd[] = new byte[2 * numSamples];
+
+  void genTone(double frequency, double volume){
+    // fill out the array
+    for (int i = 0; i < numSamples; ++i) {
+        sample[i] = 0.3 * volume * Math.sin(2 * Math.PI * i / (sampleRate/frequency));
+    }
+
+    // convert to 16 bit pcm sound array
+    // assumes the sample buffer is normalised.
+    int idx = 0;
+    for (final double dVal : sample) {
+        // scale to maximum amplitude
+        final short val = (short) ((dVal * 32767));
+        // in 16 bit wav PCM, first byte is the low order byte
+        generatedSnd[idx++] = (byte) (val & 0x00ff);
+        generatedSnd[idx++] = (byte) ((val & 0xff00) >>> 8);
+    }
+  }
+
+  void playSound(){
+      mSynthesizer.write(generatedSnd, 0, generatedSnd.length);
+      mSynthesizer.play();
+  }
+
 
   // Decode YUV420SP colorspace to RGB
   static public void decodeYUV420SP(int[] rgb, byte[] yuv420sp, int width, int height) {

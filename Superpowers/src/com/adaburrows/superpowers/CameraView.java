@@ -8,6 +8,8 @@ import android.hardware.Camera;
 import android.os.Bundle;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.media.AudioTrack;
+
 
 class CameraView extends SurfaceView implements SurfaceHolder.Callback {
 
@@ -16,11 +18,13 @@ class CameraView extends SurfaceView implements SurfaceHolder.Callback {
 
   SurfaceHolder mHolder;
   Camera mCamera;
+  AudioTrack mSynthesizer;
 
   // Constructor
-  CameraView(Context context, Camera camera) {
+  CameraView(Context context, Camera camera, AudioTrack synthesizer) {
     super(context);
 
+    mSynthesizer = synthesizer;
     mCamera = camera;
     mHolder = getHolder();
     mHolder.addCallback(this);
@@ -54,7 +58,7 @@ class CameraView extends SurfaceView implements SurfaceHolder.Callback {
     try {
       mCamera.setPreviewDisplay(holder);
       // Take camera data and analyse it, eventually this will turn it into audio -- just not yet.
-      mCamera.setPreviewCallback(new AudioSynth());
+      mCamera.setPreviewCallback(new AudioSynth(mSynthesizer));
       mCamera.startPreview();
     }
     catch (IOException exception) {

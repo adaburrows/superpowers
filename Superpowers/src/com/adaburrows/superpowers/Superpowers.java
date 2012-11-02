@@ -29,7 +29,9 @@ public class Superpowers extends Activity {
   private MagicOverlay mOverlay;
   AudioRecord mAudioRecord;
   AudioTrack mAudioTrack;
+  AudioTrack mSynthesizer;
   Visualizer mAudioVisualizer;
+  Runnable mPlayer;
   int mAudioSessionId;
   int mAudioSampleRate;
   int mAudioChannelInConfig;
@@ -58,6 +60,9 @@ public class Superpowers extends Activity {
     if (mAudioTrack != null) {
       mAudioTrack.stop();
     }
+    if (mSynthesizer != null) {
+      mSynthesizer.stop();
+    }
   }
 
   @Override
@@ -74,6 +79,10 @@ public class Superpowers extends Activity {
     if (mAudioTrack != null) {
       mAudioTrack.release();
       mAudioTrack = null;
+    }
+    if (mSynthesizer != null) {
+      mSynthesizer.release();
+      mSynthesizer = null;
     }
     if (mAudioVisualizer != null) {
       mAudioVisualizer.release();
@@ -105,7 +114,8 @@ public class Superpowers extends Activity {
     }).start();
 
     mAudioTrack.play();
-    mCameraView = new CameraView(this, mCamera);
+    mSynthesizer.play();
+    mCameraView = new CameraView(this, mCamera, mSynthesizer);
     mOverlay = new MagicOverlay(this);
     setContentView(mCameraView);
     addContentView(mOverlay, new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
@@ -170,6 +180,15 @@ public class Superpowers extends Activity {
       mAudioBufferSize,
       AudioTrack.MODE_STREAM,
       mAudioSessionId
+    );
+
+    mSynthesizer = new AudioTrack(
+      AudioManager.STREAM_MUSIC,
+      mAudioSampleRate, 
+      mAudioChannelOutConfig,
+      mAudioEncodingFormat, 
+      mAudioBufferSize,
+      AudioTrack.MODE_STREAM
     );
 
     mAudioVisualizer = null;
