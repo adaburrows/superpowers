@@ -113,13 +113,17 @@ class AudioSynth implements Camera.PreviewCallback {
     double minFreq = 3900;
     double redVolume = imageRedMean / 255;
     double redFrequency = minFreq + ((maxFreq - minFreq) * redVolume);
+    double greenVolume = imageGreenMean / 255;
+    double greenFrequency = minFreq + ((maxFreq - minFreq) * greenVolume);
+    double blueVolume = imageBlueMean / 255;
+    double blueFrequency = minFreq + ((maxFreq - minFreq) * blueVolume);
     
-    genTones(redFrequency, redVolume);
+    genTones(redFrequency, redVolume, greenFrequency, greenVolume, blueFrequency, blueVolume);
     playSound();
 
   }
 
-  void genTones(double redFrequency, double redVolume){
+  void genTones(double redFrequency, double redVolume, double greenFrequency, double greenVolume, double blueFrequency, double blueVolume){
 
     double redPeriod = 1.0 / redFrequency;
     double redAdjustedDuration = (int)((1.0/5)/redPeriod) * redPeriod;
