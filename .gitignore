@@ -2,3 +2,4 @@ Superpowers/bin
 Superpowers/gen
 *.o
 *.lo
+Superpowers/local.properties
