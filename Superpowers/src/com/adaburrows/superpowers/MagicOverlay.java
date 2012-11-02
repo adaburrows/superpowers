@@ -22,6 +22,7 @@ class MagicOverlay extends View {
   Paint mPaintGreen;
   Paint mPaintBlue;
   int mImageWidth, mImageHeight;
+  int mSamplingRate;
   private byte[] mBytes;
   private float[] mPoints;
   private Rect mRect = new Rect();
@@ -70,8 +71,9 @@ class MagicOverlay extends View {
     mBitmap = null;
   }
 
-  public void updateData(byte[] data) {
+  public void updateData(byte[] data, int samplingRate) {
     mBytes = data;
+    mSamplingRate = samplingRate;
     invalidate();
   }
 
@@ -88,7 +90,7 @@ class MagicOverlay extends View {
     }
 
     // Draw a string
-    String imageMeanStr = "Hello World!";
+    String imageMeanStr = "" + mSamplingRate;
     canvas.drawText(imageMeanStr, marginWidth+10-1, 30-1, mPaintRed);
     canvas.drawText(imageMeanStr, marginWidth+10+1, 30-1, mPaintGreen);
     canvas.drawText(imageMeanStr, marginWidth+10+1, 30+1, mPaintBlue);
@@ -99,6 +101,9 @@ class MagicOverlay extends View {
     if (mBytes == null) {
         return;
     }
+
+    // Waveform or FFT is in mBytes (byte array), this function gets called every 
+    // time there's new data.
 
     if (mPoints == null || mPoints.length < mBytes.length * 4) {
         mPoints = new float[mBytes.length * 4];
