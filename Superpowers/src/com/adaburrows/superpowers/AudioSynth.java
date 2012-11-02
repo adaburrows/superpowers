@@ -146,6 +146,54 @@ class AudioSynth implements Camera.PreviewCallback {
         redGeneratedSnd[idx++] = (byte) (val & 0x00ff);
         redGeneratedSnd[idx++] = (byte) ((val & 0xff00) >>> 8);
     }
+
+
+    // Compute the green channel
+    double greenPeriod = 1.0 / greenFrequency;
+    double greenAdjustedDuration = (int)((1.0/5)/greenPeriod) * greenPeriod;
+    int greenNumSamples = (int)(greenAdjustedDuration * sampleRate);
+    greenSample = new double[greenNumSamples];
+    greenGeneratedSnd = new byte[2 * greenNumSamples];
+
+    // fill out the green array
+    for (int i = 0; i < greenNumSamples; ++i) {
+        greenSample[i] = greenVolume * Math.sin(2 * Math.PI * i / (sampleRate/greenFrequency));
+    }
+
+    // convert to 16 bit pcm sound array
+    // assumes the greenSample buffer is normalised.
+    idx = 0;
+    for (final double dVal : greenSample) {
+        // scale to maximum amplitude
+        final short val = (short) ((dVal * 16384));
+        // in 16 bit wav PCM, first byte is the low order byte
+        greenGeneratedSnd[idx++] = (byte) (val & 0x00ff);
+        greenGeneratedSnd[idx++] = (byte) ((val & 0xff00) >>> 8);
+    }
+
+
+    // Compute the blue channel
+    double bluePeriod = 1.0 / blueFrequency;
+    double blueAdjustedDuration = (int)((1.0/5)/bluePeriod) * bluePeriod;
+    int blueNumSamples = (int)(blueAdjustedDuration * sampleRate);
+    blueSample = new double[blueNumSamples];
+    blueGeneratedSnd = new byte[2 * blueNumSamples];
+
+    // fill out the blue array
+    for (int i = 0; i < blueNumSamples; ++i) {
+        blueSample[i] = blueVolume * Math.sin(2 * Math.PI * i / (sampleRate/blueFrequency));
+    }
+
+    // convert to 16 bit pcm sound array
+    // assumes the blueSample buffer is normalised.
+    idx = 0;
+    for (final double dVal : blueSample) {
+        // scale to maximum amplitude
+        final short val = (short) ((dVal * 16384));
+        // in 16 bit wav PCM, first byte is the low order byte
+        blueGeneratedSnd[idx++] = (byte) (val & 0x00ff);
+        blueGeneratedSnd[idx++] = (byte) ((val & 0xff00) >>> 8);
+    }
   }
 
   void playSound(){
