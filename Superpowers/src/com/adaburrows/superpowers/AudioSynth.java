@@ -130,7 +130,7 @@ class AudioSynth implements Camera.PreviewCallback {
   void genTones(double redFrequency, double redVolume, double greenFrequency, double greenVolume, double blueFrequency, double blueVolume){
 
     double redPeriod = 1.0 / redFrequency;
-    double redAdjustedDuration = (int)((1.0/5)/redPeriod) * redPeriod;
+    double redAdjustedDuration = (int)((1.0/3)/redPeriod) * redPeriod;
     int redNumSamples = (int)(redAdjustedDuration * sampleRate);
     redSample = new double[redNumSamples];
     redGeneratedSnd = new byte[2 * redNumSamples];
@@ -154,7 +154,7 @@ class AudioSynth implements Camera.PreviewCallback {
 
     // Compute the green channel
     double greenPeriod = 1.0 / greenFrequency;
-    double greenAdjustedDuration = (int)((1.0/5)/greenPeriod) * greenPeriod;
+    double greenAdjustedDuration = (int)((1.0/3)/greenPeriod) * greenPeriod;
     int greenNumSamples = (int)(greenAdjustedDuration * sampleRate);
     greenSample = new double[greenNumSamples];
     greenGeneratedSnd = new byte[2 * greenNumSamples];
@@ -178,7 +178,7 @@ class AudioSynth implements Camera.PreviewCallback {
 
     // Compute the blue channel
     double bluePeriod = 1.0 / blueFrequency;
-    double blueAdjustedDuration = (int)((1.0/5)/bluePeriod) * bluePeriod;
+    double blueAdjustedDuration = (int)((1.0/3)/bluePeriod) * bluePeriod;
     int blueNumSamples = (int)(blueAdjustedDuration * sampleRate);
     blueSample = new double[blueNumSamples];
     blueGeneratedSnd = new byte[2 * blueNumSamples];
