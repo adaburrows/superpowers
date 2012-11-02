@@ -41,8 +41,12 @@ class AudioSynth implements Camera.PreviewCallback {
   double[] mBinSquared;
   AudioTrack mSynthesizer;
   private final int sampleRate = 44100;
-  private double sample[];
-  private byte generatedSnd[];
+  private double redSample[];
+  private double greenSample[];
+  private double blueSample[];
+  private byte redGeneratedSnd[];
+  private byte greenGeneratedSnd[];
+  private byte blueGeneratedSnd[];
 
 
   // Constructor
@@ -107,43 +111,41 @@ class AudioSynth implements Camera.PreviewCallback {
 
     double maxFreq = 5200;
     double minFreq = 3900;
-    double volume = imageRedMean / 255;
-    double frequency = minFreq + ((maxFreq - minFreq) * volume);
+    double redVolume = imageRedMean / 255;
+    double redFrequency = minFreq + ((maxFreq - minFreq) * redVolume);
     
-    genTone(frequency, volume);
+    genTones(redFrequency, redVolume);
     playSound();
 
   }
 
-  void genTone(double frequency, double volume){
+  void genTones(double redFrequency, double redVolume){
 
-    double period = 1.0 / frequency;
-    double adjusted_duration = (int)((1.0/5)/period) * period;
-    int numSamples = (int)(adjusted_duration * sampleRate);
+    double redPeriod = 1.0 / redFrequency;
+    double redAdjustedDuration = (int)((1.0/5)/redPeriod) * redPeriod;
+    int redNumSamples = (int)(redAdjustedDuration * sampleRate);
+    redSample = new double[redNumSamples];
+    redGeneratedSnd = new byte[2 * redNumSamples];
 
-    sample = new double[numSamples];
-    generatedSnd = new byte[2 * numSamples];
-
-    // fill out the array
-    for (int i = 0; i < numSamples; ++i) {
-        sample[i] = volume * Math.sin(2 * Math.PI * i / (sampleRate/frequency));
+    // fill out the red array
+    for (int i = 0; i < redNumSamples; ++i) {
+        redSample[i] = redVolume * Math.sin(2 * Math.PI * i / (sampleRate/redFrequency));
     }
-    Log.i(TAG, "Final tone amplitude: " + sample[sample.length-1]);
 
     // convert to 16 bit pcm sound array
-    // assumes the sample buffer is normalised.
+    // assumes the redSample buffer is normalised.
     int idx = 0;
-    for (final double dVal : sample) {
+    for (final double dVal : redSample) {
         // scale to maximum amplitude
         final short val = (short) ((dVal * 16384));
         // in 16 bit wav PCM, first byte is the low order byte
-        generatedSnd[idx++] = (byte) (val & 0x00ff);
-        generatedSnd[idx++] = (byte) ((val & 0xff00) >>> 8);
+        redGeneratedSnd[idx++] = (byte) (val & 0x00ff);
+        redGeneratedSnd[idx++] = (byte) ((val & 0xff00) >>> 8);
     }
   }
 
   void playSound(){
-      mSynthesizer.write(generatedSnd, 0, generatedSnd.length);
+      mSynthesizer.write(redGeneratedSnd, 0, redGeneratedSnd.length);
   }
 
 
