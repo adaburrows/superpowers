@@ -88,22 +88,14 @@ class AudioSynth implements Camera.PreviewCallback {
     imageGreenMean /= greenHistogramSum;
     imageBlueMean /= blueHistogramSum;
 
-    // Calculate second moment
-    double imageRed2ndMoment = 0, imageGreen2ndMoment = 0, imageBlue2ndMoment = 0;
-    for (int bin = 0; bin < 256; bin++) {
-      imageRed2ndMoment += mRedHistogram[bin] * mBinSquared[bin];
-      imageGreen2ndMoment += mGreenHistogram[bin] * mBinSquared[bin];
-      imageBlue2ndMoment += mBlueHistogram[bin] * mBinSquared[bin];
-    }
-    imageRed2ndMoment /= redHistogramSum;
-    imageGreen2ndMoment /= greenHistogramSum;
-    imageBlue2ndMoment /= blueHistogramSum;
-    double imageRedStdDev = Math.sqrt( imageRed2ndMoment - imageRedMean*imageRedMean );
-    double imageGreenStdDev = Math.sqrt( imageGreen2ndMoment - imageGreenMean*imageGreenMean );
-    double imageBlueStdDev = Math.sqrt( imageBlue2ndMoment - imageBlueMean*imageBlueMean );
-
     // Test of all the above, creates lots of log messages!!!
-    //Log.i(TAG, "Mean (R,G,B): " + String.format("%.4g", imageRedMean) + ", " + String.format("%.4g", imageGreenMean) + ", " + String.format("%.4g", imageBlueMean));
+    Log.i(TAG, "Mean (R,G,B): " + String.format("%.4g", imageRedMean) + ", " + String.format("%.4g", imageGreenMean) + ", " + String.format("%.4g", imageBlueMean));
+
+    // This is where you'll use imageRedMean, imageGreenMean, and imageBlueMean to 
+    // construct a waveform based on the aggregate channel luminosities.
+
+    // TODO Dann: cross-modalize v->A Here.
+
   }
 
   // Decode YUV420SP colorspace to RGB
@@ -140,22 +132,6 @@ class AudioSynth implements Camera.PreviewCallback {
     }
   }
 
-  static public void decodeYUV420SPGrayscale(int[] rgb, byte[] yuv420sp, int width, int height) {
-    // Calculate the frame size
-    final int frameSize = width * height;
-
-    // Lets do this with a lot of bit twiddling for some speed
-    for (int pix = 0; pix < frameSize; pix++) {
-      // Get luminosity and ignore the other components
-      int pixVal = (0xff & ((int) yuv420sp[pix])) - 16;
-      // Must be within a certain range and we don't care about errors.
-      if (pixVal < 0) pixVal = 0;
-      if (pixVal > 255) pixVal = 255;
-      // Set RGB to the same value based on luminosity
-      rgb[pix] = 0xff000000 | (pixVal << 16) | (pixVal << 8) | pixVal;
-    }
-  }
- 
   static public void calculateIntensityHistogram(int[] rgb, int[] histogram, int width, int height, int component) {
     // Zero histogram bins
     for (int bin = 0; bin < 256; bin++) {

@@ -150,7 +150,7 @@ public class Superpowers extends Activity {
       mAudioSampleRate,
       mAudioChannelInConfig,
       mAudioEncodingFormat
-    );
+    ) * 2;
     
     mAudioRecord = new AudioRecord(
       MediaRecorder.AudioSource.MIC,
@@ -180,10 +180,10 @@ public class Superpowers extends Activity {
         new Visualizer.OnDataCaptureListener() {
 
           public void onWaveFormDataCapture(Visualizer visualizer, byte[] bytes, int samplingRate) {
+            mOverlay.updateData(bytes, samplingRate);
           }
 
           public void onFftDataCapture(Visualizer visualizer, byte[] bytes, int samplingRate) {
-            mOverlay.updateData(bytes);
           }
 
         },
