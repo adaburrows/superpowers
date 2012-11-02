@@ -20,3 +20,8 @@ And build:
 Finally, push your build to your phone to test:
 
 		adb install bin/Superpowers-debug.apk
+
+To see logging data:
+
+		adb logcat
+
