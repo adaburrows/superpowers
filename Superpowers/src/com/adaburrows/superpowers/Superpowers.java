@@ -93,16 +93,16 @@ public class Superpowers extends Activity {
       public void run(){
         mAudioRecord.startRecording();
         while (true) {
-          int chunk_size = mAudioBufferSize / (8);
-          short[] samples = new short[8];
-          for (int i = 0; i < 8; i++) {
+          int chunk_size = mAudioBufferSize / 2;
+          short[] samples = new short[chunk_size];
+          for (int i = 0; i < 2; i++) {
             int offset = i * chunk_size;
             mAudioRecord.read(samples, offset, chunk_size);
             mAudioTrack.write(samples, offset, chunk_size);
           }
         }
       }
-    });
+    }).start();
 
     mAudioTrack.play();
     mCameraView = new CameraView(this, mCamera);
@@ -180,10 +180,11 @@ public class Superpowers extends Activity {
         new Visualizer.OnDataCaptureListener() {
 
           public void onWaveFormDataCapture(Visualizer visualizer, byte[] bytes, int samplingRate) {
-            mOverlay.updateData(bytes);
           }
 
-          public void onFftDataCapture(Visualizer visualizer, byte[] bytes, int samplingRate) {}
+          public void onFftDataCapture(Visualizer visualizer, byte[] bytes, int samplingRate) {
+            mOverlay.updateData(bytes);
+          }
 
         },
         Visualizer.getMaxCaptureRate() / 2, true, false
