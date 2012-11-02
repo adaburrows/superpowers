@@ -1,5 +1,6 @@
 package com.adaburrows.superpowers;
 
+import com.adaburrows.superpowers.PlaySound;
 import java.io.IOException;
 
 import android.util.Log;
@@ -20,6 +21,10 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.ViewGroup.LayoutParams;
+import android.media.AudioTrack;
+import android.media.AudioManager;
+import android.media.AudioFormat;
+
 
 class AudioSynth implements Camera.PreviewCallback {
 
@@ -34,12 +39,26 @@ class AudioSynth implements Camera.PreviewCallback {
   int[] mGreenHistogram;
   int[] mBlueHistogram;
   double[] mBinSquared;
+  AudioTrack mRedSynthesizer;
+  AudioTrack mGreenSynthesizer;
+  AudioTrack mBlueSynthesizer;
+  private final int sampleRate = 44100;
+  private double redSample[];
+  private double greenSample[];
+  private double blueSample[];
+  private byte redGeneratedSnd[];
+  private byte greenGeneratedSnd[];
+  private byte blueGeneratedSnd[];
+
 
   // Constructor
-  public AudioSynth() {
+  public AudioSynth(AudioTrack redSynthesizer, AudioTrack greenSynthesizer, AudioTrack blueSynthesizer) {
     mFinished = false;
     mYUVData = null;
     mRGBData = null;
+    mRedSynthesizer = redSynthesizer;
+    mGreenSynthesizer = greenSynthesizer;
+    mBlueSynthesizer = blueSynthesizer;
     mRedHistogram = new int[256];
     mGreenHistogram = new int[256];
     mBlueHistogram = new int[256];
@@ -94,9 +113,99 @@ class AudioSynth implements Camera.PreviewCallback {
     // This is where you'll use imageRedMean, imageGreenMean, and imageBlueMean to 
     // construct a waveform based on the aggregate channel luminosities.
 
-    // TODO Dann: cross-modalize v->A Here.
+    double maxFreq = 5200;
+    double minFreq = 3900;
+    double redVolume = imageRedMean / 255;
+    double redFrequency = minFreq + ((maxFreq - minFreq) * redVolume);
+    double greenVolume = imageGreenMean / 255;
+    double greenFrequency = minFreq + ((maxFreq - minFreq) * greenVolume);
+    double blueVolume = imageBlueMean / 255;
+    double blueFrequency = minFreq + ((maxFreq - minFreq) * blueVolume);
+    
+    genTones(redFrequency, redVolume, greenFrequency, greenVolume, blueFrequency, blueVolume);
+    playSound();
 
   }
+
+  void genTones(double redFrequency, double redVolume, double greenFrequency, double greenVolume, double blueFrequency, double blueVolume){
+
+    double redPeriod = 1.0 / redFrequency;
+    double redAdjustedDuration = (int)((1.0/5)/redPeriod) * redPeriod;
+    int redNumSamples = (int)(redAdjustedDuration * sampleRate);
+    redSample = new double[redNumSamples];
+    redGeneratedSnd = new byte[2 * redNumSamples];
+
+    // fill out the red array
+    for (int i = 0; i < redNumSamples; ++i) {
+        redSample[i] = redVolume * Math.sin(2 * Math.PI * i / (sampleRate/redFrequency));
+    }
+
+    // convert to 16 bit pcm sound array
+    // assumes the redSample buffer is normalised.
+    int idx = 0;
+    for (final double dVal : redSample) {
+        // scale to maximum amplitude
+        final short val = (short) ((dVal * 16384));
+        // in 16 bit wav PCM, first byte is the low order byte
+        redGeneratedSnd[idx++] = (byte) (val & 0x00ff);
+        redGeneratedSnd[idx++] = (byte) ((val & 0xff00) >>> 8);
+    }
+
+
+    // Compute the green channel
+    double greenPeriod = 1.0 / greenFrequency;
+    double greenAdjustedDuration = (int)((1.0/5)/greenPeriod) * greenPeriod;
+    int greenNumSamples = (int)(greenAdjustedDuration * sampleRate);
+    greenSample = new double[greenNumSamples];
+    greenGeneratedSnd = new byte[2 * greenNumSamples];
+
+    // fill out the green array
+    for (int i = 0; i < greenNumSamples; ++i) {
+        greenSample[i] = greenVolume * Math.sin(2 * Math.PI * i / (sampleRate/greenFrequency));
+    }
+
+    // convert to 16 bit pcm sound array
+    // assumes the greenSample buffer is normalised.
+    idx = 0;
+    for (final double dVal : greenSample) {
+        // scale to maximum amplitude
+        final short val = (short) ((dVal * 16384));
+        // in 16 bit wav PCM, first byte is the low order byte
+        greenGeneratedSnd[idx++] = (byte) (val & 0x00ff);
+        greenGeneratedSnd[idx++] = (byte) ((val & 0xff00) >>> 8);
+    }
+
+
+    // Compute the blue channel
+    double bluePeriod = 1.0 / blueFrequency;
+    double blueAdjustedDuration = (int)((1.0/5)/bluePeriod) * bluePeriod;
+    int blueNumSamples = (int)(blueAdjustedDuration * sampleRate);
+    blueSample = new double[blueNumSamples];
+    blueGeneratedSnd = new byte[2 * blueNumSamples];
+
+    // fill out the blue array
+    for (int i = 0; i < blueNumSamples; ++i) {
+        blueSample[i] = blueVolume * Math.sin(2 * Math.PI * i / (sampleRate/blueFrequency));
+    }
+
+    // convert to 16 bit pcm sound array
+    // assumes the blueSample buffer is normalised.
+    idx = 0;
+    for (final double dVal : blueSample) {
+        // scale to maximum amplitude
+        final short val = (short) ((dVal * 16384));
+        // in 16 bit wav PCM, first byte is the low order byte
+        blueGeneratedSnd[idx++] = (byte) (val & 0x00ff);
+        blueGeneratedSnd[idx++] = (byte) ((val & 0xff00) >>> 8);
+    }
+  }
+
+  void playSound(){
+      mRedSynthesizer.write(redGeneratedSnd, 0, redGeneratedSnd.length);
+      mGreenSynthesizer.write(greenGeneratedSnd, 0, greenGeneratedSnd.length);
+      mBlueSynthesizer.write(blueGeneratedSnd, 0, blueGeneratedSnd.length);
+  }
+
 
   // Decode YUV420SP colorspace to RGB
   static public void decodeYUV420SP(int[] rgb, byte[] yuv420sp, int width, int height) {

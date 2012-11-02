@@ -29,7 +29,9 @@ public class Superpowers extends Activity {
   private MagicOverlay mOverlay;
   AudioRecord mAudioRecord;
   AudioTrack mAudioTrack;
+  AudioTrack mRedSynthesizer, mGreenSynthesizer, mBlueSynthesizer;
   Visualizer mAudioVisualizer;
+  Runnable mPlayer;
   int mAudioSessionId;
   int mAudioSampleRate;
   int mAudioChannelInConfig;
@@ -58,6 +60,15 @@ public class Superpowers extends Activity {
     if (mAudioTrack != null) {
       mAudioTrack.stop();
     }
+    if (mRedSynthesizer != null) {
+      mRedSynthesizer.stop();
+    }
+    if (mGreenSynthesizer != null) {
+      mGreenSynthesizer.stop();
+    }
+    if (mBlueSynthesizer != null) {
+      mBlueSynthesizer.stop();
+    }
   }
 
   @Override
@@ -74,6 +85,18 @@ public class Superpowers extends Activity {
     if (mAudioTrack != null) {
       mAudioTrack.release();
       mAudioTrack = null;
+    }
+    if (mRedSynthesizer != null) {
+      mRedSynthesizer.release();
+      mRedSynthesizer = null;
+    }
+    if (mGreenSynthesizer != null) {
+      mGreenSynthesizer.release();
+      mGreenSynthesizer = null;
+    }
+    if (mBlueSynthesizer != null) {
+      mBlueSynthesizer.release();
+      mBlueSynthesizer = null;
     }
     if (mAudioVisualizer != null) {
       mAudioVisualizer.release();
@@ -105,7 +128,10 @@ public class Superpowers extends Activity {
     }).start();
 
     mAudioTrack.play();
-    mCameraView = new CameraView(this, mCamera);
+    mRedSynthesizer.play();
+    mGreenSynthesizer.play();
+    mBlueSynthesizer.play();
+    mCameraView = new CameraView(this, mCamera, mRedSynthesizer, mGreenSynthesizer, mBlueSynthesizer);
     mOverlay = new MagicOverlay(this);
     setContentView(mCameraView);
     addContentView(mOverlay, new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
@@ -170,6 +196,33 @@ public class Superpowers extends Activity {
       mAudioBufferSize,
       AudioTrack.MODE_STREAM,
       mAudioSessionId
+    );
+
+    mRedSynthesizer = new AudioTrack(
+      AudioManager.STREAM_MUSIC,
+      mAudioSampleRate, 
+      mAudioChannelOutConfig,
+      mAudioEncodingFormat, 
+      mAudioBufferSize,
+      AudioTrack.MODE_STREAM
+    );
+
+    mGreenSynthesizer = new AudioTrack(
+      AudioManager.STREAM_MUSIC,
+      mAudioSampleRate, 
+      mAudioChannelOutConfig,
+      mAudioEncodingFormat, 
+      mAudioBufferSize,
+      AudioTrack.MODE_STREAM
+    );
+
+    mBlueSynthesizer = new AudioTrack(
+      AudioManager.STREAM_MUSIC,
+      mAudioSampleRate, 
+      mAudioChannelOutConfig,
+      mAudioEncodingFormat, 
+      mAudioBufferSize,
+      AudioTrack.MODE_STREAM
     );
 
     mAudioVisualizer = null;
