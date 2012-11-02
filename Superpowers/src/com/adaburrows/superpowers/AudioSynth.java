@@ -141,7 +141,7 @@ class AudioSynth implements Camera.PreviewCallback {
 
   int computeSamples(short[] generatedSnd, double frequency, double volume) {
     //Log.i("samples", "frequency = " + frequency + " volume = " + volume);
-    double period = 1 / frequency;
+    double period = 1.0 / frequency;
     double adjustedDuration = (int)((1.0/3)/period)*period;
     int numSamples = (int)(adjustedDuration * sampleRate);
     //Log.i("samples", "adjustedDuration = " + adjustedDuration + " numSamples = " + numSamples);
