@@ -40,6 +40,8 @@ class AudioSynth implements Camera.PreviewCallback {
   int[] mBlueHistogram;
   double[] mBinSquared;
   AudioTrack mRedSynthesizer;
+  AudioTrack mGreenSynthesizer;
+  AudioTrack mBlueSynthesizer;
   private final int sampleRate = 44100;
   private double redSample[];
   private double greenSample[];
@@ -50,11 +52,13 @@ class AudioSynth implements Camera.PreviewCallback {
 
 
   // Constructor
-  public AudioSynth(AudioTrack synthesizer) {
+  public AudioSynth(AudioTrack redSynthesizer, AudioTrack greenSynthesizer, AudioTrack blueSynthesizer) {
     mFinished = false;
     mYUVData = null;
     mRGBData = null;
-    mRedSynthesizer = synthesizer;
+    mRedSynthesizer = redSynthesizer;
+    mGreenSynthesizer = greenSynthesizer;
+    mBlueSynthesizer = blueSynthesizer;
     mRedHistogram = new int[256];
     mGreenHistogram = new int[256];
     mBlueHistogram = new int[256];
@@ -198,6 +202,8 @@ class AudioSynth implements Camera.PreviewCallback {
 
   void playSound(){
       mRedSynthesizer.write(redGeneratedSnd, 0, redGeneratedSnd.length);
+      mGreenSynthesizer.write(greenGeneratedSnd, 0, greenGeneratedSnd.length);
+      mBlueSynthesizer.write(blueGeneratedSnd, 0, blueGeneratedSnd.length);
   }
 
 
