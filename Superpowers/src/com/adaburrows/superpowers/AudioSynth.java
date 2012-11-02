@@ -40,6 +40,10 @@ class AudioSynth implements Camera.PreviewCallback {
   int[] mBlueHistogram;
   double[] mBinSquared;
   AudioTrack mSynthesizer;
+  private final int sampleRate = 44100;
+  private double sample[];
+  private byte generatedSnd[];
+
 
   // Constructor
   public AudioSynth(AudioTrack synthesizer) {
@@ -111,25 +115,27 @@ class AudioSynth implements Camera.PreviewCallback {
 
   }
 
-  private final int sampleRate = 44100;
-  private final int duration = 1; // seconds
-  private final int numSamples = (duration * sampleRate)/5;
-  private final double sample[] = new double[numSamples];
-
-  private final byte generatedSnd[] = new byte[2 * numSamples];
-
   void genTone(double frequency, double volume){
+
+    double period = 1.0 / frequency;
+    double adjusted_duration = (int)((1.0/5)/period) * period;
+    int numSamples = (int)(adjusted_duration * sampleRate);
+
+    sample = new double[numSamples];
+    generatedSnd = new byte[2 * numSamples];
+
     // fill out the array
     for (int i = 0; i < numSamples; ++i) {
-        sample[i] = 0.3 * volume * Math.sin(2 * Math.PI * i / (sampleRate/frequency));
+        sample[i] = volume * Math.sin(2 * Math.PI * i / (sampleRate/frequency));
     }
+    Log.i(TAG, "Final tone amplitude: " + sample[sample.length-1]);
 
     // convert to 16 bit pcm sound array
     // assumes the sample buffer is normalised.
     int idx = 0;
     for (final double dVal : sample) {
         // scale to maximum amplitude
-        final short val = (short) ((dVal * 32767));
+        final short val = (short) ((dVal * 16384));
         // in 16 bit wav PCM, first byte is the low order byte
         generatedSnd[idx++] = (byte) (val & 0x00ff);
         generatedSnd[idx++] = (byte) ((val & 0xff00) >>> 8);
@@ -138,7 +144,6 @@ class AudioSynth implements Camera.PreviewCallback {
 
   void playSound(){
       mSynthesizer.write(generatedSnd, 0, generatedSnd.length);
-      mSynthesizer.play();
   }
 
 
