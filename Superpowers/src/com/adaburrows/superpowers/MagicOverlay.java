@@ -11,17 +11,6 @@ import android.graphics.Rect;
 import android.graphics.RectF;
 import android.os.Bundle;
 import android.view.View;
-import android.media.AudioFormat;
-import android.media.AudioRecord;
-import android.media.MediaRecorder;
-import android.media.MediaRecorder.AudioSource;
-import android.media.audiofx.Visualizer;
-
-/*
- * This is probably mostly going away, in favor of drawing data from audio.
- * Let's keep the histgoram stuff around for the future (even though it will
- * change to HSV space).
- */
 
 class MagicOverlay extends View {
 
@@ -33,11 +22,21 @@ class MagicOverlay extends View {
   Paint mPaintGreen;
   Paint mPaintBlue;
   int mImageWidth, mImageHeight;
+  private byte[] mBytes;
+  private float[] mPoints;
+  private Rect mRect = new Rect();
+  private Paint mForePaint = new Paint();
 
   // Constructor
-  public MagicOverlay(Context context, Visualizer visualizer) {
+  public MagicOverlay(Context context) {
     super(context);
-        
+
+    mBytes = null;
+
+    mForePaint.setStrokeWidth(1f);
+    mForePaint.setAntiAlias(true);
+    mForePaint.setColor(Color.rgb(0, 128, 255));
+
     mPaintBlack = new Paint();
     mPaintBlack.setStyle(Paint.Style.FILL);
     mPaintBlack.setColor(Color.BLACK);
@@ -71,24 +70,52 @@ class MagicOverlay extends View {
     mBitmap = null;
   }
 
+  public void updateData(byte[] data) {
+    mBytes = data;
+    invalidate();
+  }
+
   @Override
   protected void onDraw(Canvas canvas) {
-    // Draw if we have a bitmap to draw on
-    //if (mBitmap != null) {
-      int canvasWidth = canvas.getWidth();
-      int canvasHeight = canvas.getHeight();
-      int newImageWidth = canvasWidth;
-      int newImageHeight = canvasHeight;
-      int marginWidth = (canvasWidth - newImageWidth)/2;
+    int canvasWidth = canvas.getWidth();
+    int canvasHeight = canvas.getHeight();
+    int newImageWidth = canvasWidth;
+    int newImageHeight = canvasHeight;
+    int marginWidth = (canvasWidth - newImageWidth)/2;
 
-      // Draw a string
-      String imageMeanStr = "Hello World!";
-      canvas.drawText(imageMeanStr, marginWidth+10-1, 30-1, mPaintRed);
-      canvas.drawText(imageMeanStr, marginWidth+10+1, 30-1, mPaintGreen);
-      canvas.drawText(imageMeanStr, marginWidth+10+1, 30+1, mPaintBlue);
-      canvas.drawText(imageMeanStr, marginWidth+10-1, 30+1, mPaintBlack);
-      canvas.drawText(imageMeanStr, marginWidth+10, 30, mPaintYellow);
-      //}
+    // Draw if we have a bitmap to draw on
+    if (mBitmap != null) {
+    }
+
+    // Draw a string
+    String imageMeanStr = "Hello World!";
+    canvas.drawText(imageMeanStr, marginWidth+10-1, 30-1, mPaintRed);
+    canvas.drawText(imageMeanStr, marginWidth+10+1, 30-1, mPaintGreen);
+    canvas.drawText(imageMeanStr, marginWidth+10+1, 30+1, mPaintBlue);
+    canvas.drawText(imageMeanStr, marginWidth+10-1, 30+1, mPaintBlack);
+    canvas.drawText(imageMeanStr, marginWidth+10, 30, mPaintYellow);
+
+
+    if (mBytes == null) {
+        return;
+    }
+
+    if (mPoints == null || mPoints.length < mBytes.length * 4) {
+        mPoints = new float[mBytes.length * 4];
+    }
+
+    mRect.set(0, 0, getWidth(), getHeight());
+
+    for (int i = 0; i < mBytes.length - 1; i++) {
+        mPoints[i * 4] = mRect.width() * i / (mBytes.length - 1);
+        mPoints[i * 4 + 1] = mRect.height() / 2
+                + ((byte) (mBytes[i] + 128)) * (mRect.height() / 2) / 128;
+        mPoints[i * 4 + 2] = mRect.width() * (i + 1) / (mBytes.length - 1);
+        mPoints[i * 4 + 3] = mRect.height() / 2
+                + ((byte) (mBytes[i + 1] + 128)) * (mRect.height() / 2) / 128;
+    }
+
+    canvas.drawLines(mPoints, mForePaint);
 
     // Draw our parent
     super.onDraw(canvas);

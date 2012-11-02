@@ -11,8 +11,12 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.ViewGroup.LayoutParams;
+import android.media.AudioManager;
+import android.media.audiofx.Equalizer;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
+import android.media.AudioTrack;
+import android.media.MediaPlayer;
 import android.media.MediaRecorder;
 import android.media.MediaRecorder.AudioSource;
 import android.media.audiofx.Visualizer;
@@ -23,11 +27,13 @@ public class Superpowers extends Activity {
   private CameraView mCameraView;
   Camera mCamera;
   private MagicOverlay mOverlay;
-  AudioRecord mAudio;
+  AudioRecord mAudioRecord;
+  AudioTrack mAudioTrack;
   Visualizer mAudioVisualizer;
   int mAudioSessionId;
   int mAudioSampleRate;
-  int mAudioChannelFormat;
+  int mAudioChannelInConfig;
+  int mAudioChannelOutConfig;
   int mAudioEncodingFormat;
   int mAudioBufferSize;
 
@@ -46,6 +52,12 @@ public class Superpowers extends Activity {
     if (mCamera != null) {
       mCamera.stopPreview();
     }
+    if (mAudioRecord != null) {
+      mAudioRecord.stop();
+    }
+    if (mAudioTrack != null) {
+      mAudioTrack.stop();
+    }
   }
 
   @Override
@@ -55,11 +67,13 @@ public class Superpowers extends Activity {
       mCamera.release();
       mCamera = null;
     }
-    // Stop the audio subsytem
-    if (mAudio != null) {
-      mAudio.stop();
-      mAudio.release();
-      mAudio = null;
+    if (mAudioRecord != null) {
+      mAudioRecord.release();
+      mAudioRecord = null;
+    }
+    if (mAudioTrack != null) {
+      mAudioTrack.release();
+      mAudioTrack = null;
     }
     if (mAudioVisualizer != null) {
       mAudioVisualizer.release();
@@ -72,9 +86,27 @@ public class Superpowers extends Activity {
 
     mCamera = getCamera();
     setupCamera();
-    mCameraView = new CameraView(this, mCamera);
     setupAudio();
-    mOverlay = new MagicOverlay(this, mAudioVisualizer);
+    setVolumeControlStream(AudioManager.STREAM_MUSIC);
+
+    new Thread(new Runnable(){
+      public void run(){
+        mAudioRecord.startRecording();
+        while (true) {
+          int chunk_size = mAudioBufferSize / (8);
+          short[] samples = new short[8];
+          for (int i = 0; i < 8; i++) {
+            int offset = i * chunk_size;
+            mAudioRecord.read(samples, offset, chunk_size);
+            mAudioTrack.write(samples, offset, chunk_size);
+          }
+        }
+      }
+    });
+
+    mAudioTrack.play();
+    mCameraView = new CameraView(this, mCamera);
+    mOverlay = new MagicOverlay(this);
     setContentView(mCameraView);
     addContentView(mOverlay, new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
     //setContentView(R.layout.main);
@@ -111,39 +143,51 @@ public class Superpowers extends Activity {
   public void setupAudio() {
     //HOWTO:  Set up audio buffer for reading.
     mAudioSampleRate = 44100;
-    mAudioChannelFormat = AudioFormat.CHANNEL_IN_MONO;
+    mAudioChannelInConfig = AudioFormat.CHANNEL_IN_MONO;
+    mAudioChannelOutConfig = AudioFormat.CHANNEL_OUT_MONO;
     mAudioEncodingFormat = AudioFormat.ENCODING_PCM_16BIT;
     mAudioBufferSize = AudioRecord.getMinBufferSize(
       mAudioSampleRate,
-      mAudioChannelFormat,
+      mAudioChannelInConfig,
       mAudioEncodingFormat
     );
-    mAudio = new AudioRecord(
+    
+    mAudioRecord = new AudioRecord(
       MediaRecorder.AudioSource.MIC,
       mAudioSampleRate,
-      mAudioChannelFormat,
+      mAudioChannelInConfig,
       mAudioEncodingFormat,
       mAudioBufferSize
     );
-    mAudioSessionId = mAudio.getAudioSessionId();
+    mAudioSessionId = mAudioRecord.getAudioSessionId();
+    Log.d(TAG, "Audio session ID: " + mAudioSessionId);
 
-    // new Thread(new Runnable(){
-    //   public void run(){
-    //     mAudio.startRecording();
-    //     while (true) {
-    //       int chunk_size = mAudioBufferSize / (40 * 2);
-    //       short[] samples = new short[40];
-    //       for (int i = 0; i < 40; i++) {
-    //         int offset = i * chunk_size;
-    //         mAudio.read(samples, offset, chunk_size);
-    //       }
-    //     }
-    //   }
-    // });
+    mAudioTrack = new AudioTrack(
+      AudioManager.STREAM_MUSIC,
+      mAudioSampleRate,
+      mAudioChannelOutConfig,
+      mAudioEncodingFormat,
+      mAudioBufferSize,
+      AudioTrack.MODE_STREAM,
+      mAudioSessionId
+    );
 
     mAudioVisualizer = null;
     try {
       mAudioVisualizer = new Visualizer(mAudioSessionId);
+      mAudioVisualizer.setCaptureSize(Visualizer.getCaptureSizeRange()[1]);
+      mAudioVisualizer.setDataCaptureListener(
+        new Visualizer.OnDataCaptureListener() {
+
+          public void onWaveFormDataCapture(Visualizer visualizer, byte[] bytes, int samplingRate) {
+            mOverlay.updateData(bytes);
+          }
+
+          public void onFftDataCapture(Visualizer visualizer, byte[] bytes, int samplingRate) {}
+
+        },
+        Visualizer.getMaxCaptureRate() / 2, true, false
+      );
       mAudioVisualizer.setEnabled(true);
     } catch (Exception exception) {
       Log.d(TAG, "Error creating Visualizer: " + exception.getMessage());
