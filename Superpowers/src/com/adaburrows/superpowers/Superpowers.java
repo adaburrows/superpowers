@@ -31,7 +31,7 @@ public class Superpowers extends Activity {
   AudioTrack mAudioTrack;
   AudioTrack mRedSynthesizer, mGreenSynthesizer, mBlueSynthesizer;
   Visualizer mAudioVisualizer;
-  Runnable mPlayer;
+  MediaBridge mPlayer;
   int mAudioSessionId;
   int mAudioSampleRate;
   int mAudioChannelInConfig;
@@ -101,6 +101,9 @@ public class Superpowers extends Activity {
     if (mAudioVisualizer != null) {
       mAudioVisualizer.release();
     }
+    if (mPlayer != null) {
+      mPlayer.stopRunning();
+    }
   }
 
   @Override
@@ -112,20 +115,8 @@ public class Superpowers extends Activity {
     setupAudio();
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
 
-    new Thread(new Runnable(){
-      public void run(){
-        mAudioRecord.startRecording();
-        while (true) {
-          int chunk_size = mAudioBufferSize / 2;
-          short[] samples = new short[chunk_size];
-          for (int i = 0; i < 2; i++) {
-            int offset = i * chunk_size;
-            mAudioRecord.read(samples, offset, chunk_size);
-            mAudioTrack.write(samples, offset, chunk_size);
-          }
-        }
-      }
-    }).start();
+    mPlayer = new MediaBridge(mAudioRecord, mAudioTrack, mAudioBufferSize);
+    new Thread(mPlayer).start();
 
     mAudioTrack.play();
     mRedSynthesizer.play();
