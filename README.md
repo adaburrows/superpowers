@@ -1,4 +1,4 @@
-Compuling the binary
+Compiling the binary
 --------------------
 
 Add the following to your `~/.profile` or `~/.bashrc` with paths appropriate to where you've installed the Android SDK and Android NDK:
