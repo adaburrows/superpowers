@@ -31,6 +31,7 @@ class AudioSynth implements Camera.PreviewCallback {
   private static final String TAG = "AudioSynth";
 
   boolean mFinished;
+  byte[] mYUVBuffer;
   int[] mRGBData;
   int mImageWidth, mImageHeight;
   int[] mRedHistogram;
@@ -41,7 +42,7 @@ class AudioSynth implements Camera.PreviewCallback {
   AudioTrack mGreenSynthesizer;
   AudioTrack mBlueSynthesizer;
   private final int sampleRate = 44100;
-  private final int maxSamples = 10 * 1470;
+  private final int maxSamples = 20 * 1470;
   private int numRedSamples;
   private int numGreenSamples;
   private int numBlueSamples;
@@ -52,7 +53,7 @@ class AudioSynth implements Camera.PreviewCallback {
 
 
   // Constructor
-  public AudioSynth(AudioTrack redSynthesizer, AudioTrack greenSynthesizer, AudioTrack blueSynthesizer) {
+  public AudioSynth(final Camera camera, AudioTrack redSynthesizer, AudioTrack greenSynthesizer, AudioTrack blueSynthesizer) {
     mFinished = false;
     mRGBData = null;
     mRedSynthesizer = redSynthesizer;
@@ -69,66 +70,79 @@ class AudioSynth implements Camera.PreviewCallback {
     {
       mBinSquared[bin] = ((double)bin) * bin;
     }
+    Camera.Parameters params = camera.getParameters();
+    mImageWidth = params.getPreviewSize().width;
+    mImageHeight = params.getPreviewSize().height;
+    int yStride   = (int) Math.ceil(mImageWidth / 16.0) * 16;
+    int uvStride  = (int) Math.ceil( (yStride / 2) / 16.0) * 16;
+    int ySize     = yStride * mImageHeight;
+    int uvSize    = uvStride * mImageHeight / 2;
+    final int size = ySize + uvSize * 2;
+    mYUVBuffer = new byte[size];
+    camera.addCallbackBuffer(mYUVBuffer);
+    mRGBData = new int[mImageWidth * mImageHeight];
   }
 
   @Override
-  public void onPreviewFrame(byte[] data, Camera camera) {
+  public void onPreviewFrame(final byte[] data, final Camera camera) {
     // Only run if we're not finished.
     if ( mFinished )
       return;
 
-    Camera.Parameters params = camera.getParameters();
-    mImageWidth = params.getPreviewSize().width;
-    mImageHeight = params.getPreviewSize().height;
-    mRGBData = new int[mImageWidth * mImageHeight];
+    new Thread(new Runnable(){
+      @Override
+      public void run(){
+        // Convert from YUV to RGB
+        decodeYUV420SP(mRGBData, data, mImageWidth, mImageHeight);
 
-    // Convert from YUV to RGB
-    decodeYUV420SP(mRGBData, data, mImageWidth, mImageHeight);
+        // Calculate histogram
+        calculateIntensityHistogram(mRGBData, mRedHistogram, 
+          mImageWidth, mImageHeight, 0);
+        calculateIntensityHistogram(mRGBData, mGreenHistogram, 
+          mImageWidth, mImageHeight, 1);
+        calculateIntensityHistogram(mRGBData, mBlueHistogram, 
+          mImageWidth, mImageHeight, 2);
 
-    // Calculate histogram
-    calculateIntensityHistogram(mRGBData, mRedHistogram, 
-      mImageWidth, mImageHeight, 0);
-    calculateIntensityHistogram(mRGBData, mGreenHistogram, 
-      mImageWidth, mImageHeight, 1);
-    calculateIntensityHistogram(mRGBData, mBlueHistogram, 
-      mImageWidth, mImageHeight, 2);
+        // Calculate mean
+        double imageRedMean = 0, imageGreenMean = 0, imageBlueMean = 0;
+        double redHistogramSum = 0, greenHistogramSum = 0, blueHistogramSum = 0;
+        for (int bin = 0; bin < 256; bin++) {
+          imageRedMean += mRedHistogram[bin] * bin;
+          redHistogramSum += mRedHistogram[bin];
+          imageGreenMean += mGreenHistogram[bin] * bin;
+          greenHistogramSum += mGreenHistogram[bin];
+          imageBlueMean += mBlueHistogram[bin] * bin;
+          blueHistogramSum += mBlueHistogram[bin];
+        }
+        imageRedMean /= redHistogramSum;
+        imageGreenMean /= greenHistogramSum;
+        imageBlueMean /= blueHistogramSum;
 
-    // Calculate mean
-    double imageRedMean = 0, imageGreenMean = 0, imageBlueMean = 0;
-    double redHistogramSum = 0, greenHistogramSum = 0, blueHistogramSum = 0;
-    for (int bin = 0; bin < 256; bin++) {
-      imageRedMean += mRedHistogram[bin] * bin;
-      redHistogramSum += mRedHistogram[bin];
-      imageGreenMean += mGreenHistogram[bin] * bin;
-      greenHistogramSum += mGreenHistogram[bin];
-      imageBlueMean += mBlueHistogram[bin] * bin;
-      blueHistogramSum += mBlueHistogram[bin];
-    }
-    imageRedMean /= redHistogramSum;
-    imageGreenMean /= greenHistogramSum;
-    imageBlueMean /= blueHistogramSum;
+        // Test of all the above, creates lots of log messages!!!
+        //Log.i(TAG, "Mean (R,G,B): " + String.format("%.4g", imageRedMean) + ", " + String.format("%.4g", imageGreenMean) + ", " + String.format("%.4g", imageBlueMean));
 
-    // Test of all the above, creates lots of log messages!!!
-    //Log.i(TAG, "Mean (R,G,B): " + String.format("%.4g", imageRedMean) + ", " + String.format("%.4g", imageGreenMean) + ", " + String.format("%.4g", imageBlueMean));
+        // This is where you'll use imageRedMean, imageGreenMean, and imageBlueMean to
+        // construct a waveform based on the aggregate channel luminosities.
 
-    // This is where you'll use imageRedMean, imageGreenMean, and imageBlueMean to
-    // construct a waveform based on the aggregate channel luminosities.
-
-    double maxFreq = 5200;
-    double minFreq = 3900;
-    double redVolume = imageRedMean / 255;
-    double redFrequency = minFreq + ((maxFreq - minFreq) * redVolume);
-    double greenVolume = imageGreenMean / 255;
-    double greenFrequency = minFreq + ((maxFreq - minFreq) * greenVolume);
-    double blueVolume = imageBlueMean / 255;
-    double blueFrequency = minFreq + ((maxFreq - minFreq) * blueVolume);
+        double maxFreq = 5200;
+        double minFreq = 3900;
+        double redVolume = imageRedMean / 255;
+        double redFrequency = minFreq + ((maxFreq - minFreq) * redVolume);
+        double greenVolume = imageGreenMean / 255;
+        double greenFrequency = minFreq + ((maxFreq - minFreq) * greenVolume);
+        double blueVolume = imageBlueMean / 255;
+        double blueFrequency = minFreq + ((maxFreq - minFreq) * blueVolume);
     
-    genTones(redFrequency, redVolume, greenFrequency, greenVolume, blueFrequency, blueVolume);
-    playSound();
+        genTones(redFrequency, redVolume, greenFrequency, greenVolume, blueFrequency, blueVolume);
+        playSound();
+
+        camera.addCallbackBuffer(mYUVBuffer);
+      }
+    }).start();
 
   }
 
-  void genTones(double redFrequency, double redVolume, double greenFrequency, double greenVolume, double blueFrequency, double blueVolume){
+  synchronized void genTones(double redFrequency, double redVolume, double greenFrequency, double greenVolume, double blueFrequency, double blueVolume){
     // Compute the red channel
     numRedSamples = computeSamples(redGeneratedSnd, redFrequency, redVolume);
 
@@ -139,11 +153,11 @@ class AudioSynth implements Camera.PreviewCallback {
     numBlueSamples = computeSamples(blueGeneratedSnd, blueFrequency, blueVolume);
   }
 
-  int computeSamples(short[] generatedSnd, double frequency, double volume) {
+  synchronized int computeSamples(short[] generatedSnd, double frequency, double volume) {
     //Log.i("samples", "frequency = " + frequency + " volume = " + volume);
     double period = 1.0 / frequency;
     double adjustedDuration = (int)((1.0/3)/period)*period;
-    int numSamples = (int)(adjustedDuration * sampleRate);
+    int numSamples = (int)(adjustedDuration * sampleRate); //Math.min((int)(adjustedDuration * sampleRate), maxSamples);
     //Log.i("samples", "adjustedDuration = " + adjustedDuration + " numSamples = " + numSamples);
     sample = new double[numSamples];
 
@@ -163,15 +177,21 @@ class AudioSynth implements Camera.PreviewCallback {
     return numSamples;
   }
 
-  void playSound() {
+  synchronized void playSound() {
+    if(mRedSynthesizer != null) {
       mRedSynthesizer.write(redGeneratedSnd, 0, numRedSamples);
+    }
+    if(mGreenSynthesizer != null) {
       mGreenSynthesizer.write(greenGeneratedSnd, 0, numGreenSamples);
+    }
+    if(mBlueSynthesizer != null) {
       mBlueSynthesizer.write(blueGeneratedSnd, 0, numBlueSamples);
+    }
   }
 
 
   // Decode YUV420SP colorspace to RGB
-  static public void decodeYUV420SP(int[] rgb, byte[] yuv420sp, int width, int height) {
+  synchronized static public void decodeYUV420SP(int[] rgb, byte[] yuv420sp, int width, int height) {
     // Calculate frame size
     final int frameSize = width * height;
 
@@ -204,7 +224,7 @@ class AudioSynth implements Camera.PreviewCallback {
     }
   }
 
-  static public void calculateIntensityHistogram(int[] rgb, int[] histogram, int width, int height, int component) {
+  synchronized static public void calculateIntensityHistogram(int[] rgb, int[] histogram, int width, int height, int component) {
     // Zero histogram bins
     for (int bin = 0; bin < 256; bin++) {
       histogram[bin] = 0;

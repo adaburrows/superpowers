@@ -8,7 +8,6 @@ import android.hardware.Camera;
 import android.os.Bundle;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
-import android.media.AudioTrack;
 
 
 class CameraView extends SurfaceView implements SurfaceHolder.Callback {
@@ -18,16 +17,14 @@ class CameraView extends SurfaceView implements SurfaceHolder.Callback {
 
   SurfaceHolder mHolder;
   Camera mCamera;
-  AudioTrack mRedSynthesizer, mGreenSynthesizer, mBlueSynthesizer;
+  AudioSynth mAudioSynth;
 
   // Constructor
-  CameraView(Context context, Camera camera, AudioTrack redSynthesizer, AudioTrack greenSynthesizer, AudioTrack blueSynthesizer) {
+  CameraView(Context context, Camera camera, AudioSynth synth) {
     super(context);
 
-    mRedSynthesizer = redSynthesizer;
-    mGreenSynthesizer = greenSynthesizer;
-    mBlueSynthesizer = blueSynthesizer;
     mCamera = camera;
+    mAudioSynth = synth;
     mHolder = getHolder();
     mHolder.addCallback(this);
     mHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
@@ -60,7 +57,7 @@ class CameraView extends SurfaceView implements SurfaceHolder.Callback {
     }
     try {
       mCamera.setPreviewDisplay(holder);
-      mCamera.setPreviewCallback(new AudioSynth(mRedSynthesizer, mGreenSynthesizer, mBlueSynthesizer));
+      mCamera.setPreviewCallbackWithBuffer(mAudioSynth);
       mCamera.startPreview();
     }
     catch (IOException exception) {
