@@ -30,7 +30,7 @@ class MagicOverlay extends View {
   int mSamplingRate;
   int mCaptureSize;
   private byte[] mBytes;
-  private float[] mPoints;
+  private int[] mPoints;
   private Rect mRect = new Rect();
   private Paint mForePaint = new Paint();
 
@@ -124,43 +124,71 @@ class MagicOverlay extends View {
     Log.i(TAG, "mCaptureSize, mSamplingRate: " + mCaptureSize + ", " + mSamplingRate );
     Log.i(TAG, "first twelve mBytes: " + mBytes[0] + ", " + mBytes[1] + ", " + mBytes[2] + ", " + mBytes[3] + ", " + mBytes[4] + ", " + mBytes[5] + ", " + mBytes[6] + ", " + mBytes[7] + ", " + mBytes[8] + ", " + mBytes[9] + ", " + mBytes[10] + ", " + mBytes[11] );
 
-    if (mPoints == null || mPoints.length < mBytes.length * 4) {
-        mPoints = new float[mBytes.length * 4];
+    // mPoints holds the 100 sample frequencies we're going to plot.
+    if (mPoints == null) {
+        mPoints = new int[100];
     }
 
+    // Sample data: mPoints[0] = 255 ... mPoints[99] = 57
+    for(int i = 0; i < 99; i++) {
+      mPoints[i] = 255;// - (2*i);
+    }
+
+    // mRect is the bounding rectangle that contains the plot. Here, it's the whole screen.
     mRect.set(0, 0, getWidth(), getHeight());
 
-    Paint wallpaint = new Paint();
-    Path wallpath = new Path();
+    for (int i = 0; i < (mPoints.length) - 1; i++) {
 
-    int alpha = 128; // Scale 0..255
-    float hue = 180f; // Scale 0..260
-    float saturation = 0.8f; // Scale 0..1
-    float value = 0.4f; // Scale 0..1
+      // Alpha: Scale 0..255
+      // Conveniently, the real component of this fourier formant is already a byte.
+      int alpha = mPoints[i];
 
-    wallpaint.setColor(Color.HSVToColor(128,new float[]{hue,saturation,value}));
-    wallpaint.setStyle(Style.FILL);
-    wallpath.reset();
+      // Hue: Scale 0..360
+      float hue = 420f-( (float)Math.pow(((float)i/(mPoints.length)),2.65) * 360f); 
+      if (hue > 360f) { hue = hue - 360f; }
 
-    wallpath.moveTo(0, 0);
-    wallpath.lineTo(0, mRect.height());
-    wallpath.lineTo(mRect.width(), mRect.height());
-    wallpath.lineTo(mRect.width(), 0);
-    wallpath.lineTo(0, 0); 
+      // Saturation: Scale 0..1
+      // TODO This corresponds to Timbre ("roughnss") between this and neighboring frequencies.
+      // If anyone knows how to calculate this at a reasonable frame rate, I'd love to hear about it.
+      // For now, I've just got this set at a decent "it looks alright" kind of value.
+      float saturation = 0.8f;
+      
+      // Value: Scale 0..1
+      // Varies directly with hue and frequency.
+      float value = mPoints[i]/255f;
 
-    canvas.drawPath(wallpath, wallpaint);
+      Paint color = new Paint();
+      color.setColor(Color.HSVToColor(128,new float[]{hue,saturation,value}));
+      color.setStyle(Style.FILL);
 
-    // for (int i = 0; i < mBytes.length - 1; i++) {
-    //     mPoints[i * 4] = mRect.width() * i / (mBytes.length - 1);
-    //     mPoints[i * 4 + 1] = mRect.height() / 2
-    //             + ((byte) (mBytes[i] + 128)) * (mRect.height() / 2) / 128;
-        
-    //     mPoints[i * 4 + 2] = mRect.width() * (i + 1) / (mBytes.length - 1);
-    //     mPoints[i * 4 + 3] = mRect.height() / 2
-    //             + ((byte) (mBytes[i + 1] + 128)) * (mRect.height() / 2) / 128;
-    // }
+      // Centerpoint coordinates cx and cy
+      // These start in the lower-left-hand corner, then sweep right and up the right-hand side of
+      // the screen before tapering across the top, ending up about 2/3 the way back left.
+      float cx =  (float)Math.sin(
+                    ((float)i / (mPoints.length)) * 2.8f
+                  ) * (
+                    (float)mRect.width() * 0.95f
+                  );
+      float cy =  ((float)mRect.height() * 0.1f) + 
+                  (
+                    (
+                      (float)Math.cos(
+                        (
+                          (float)i / (mPoints.length)
+                        ) * 4.1f - 0.45f
+                      ) + 1
+                    ) / 2 
+                  ) * (
+                    (float)mRect.height() * 0.9f
+                  );
 
-    // canvas.drawLines(mPoints, mForePaint);
+      // Radius
+      // Varies directly with hue, frequency, and value
+      float radius = (1 - ((float)i / ((mPoints.length) * 1.1f))) * ((mPoints[i] / 255f) * mRect.height() / 3);
+
+      canvas.drawCircle(cx, cy, radius, color);
+    }
+
 
     Log.i(TAG, "Leaving onDraw()");
 
