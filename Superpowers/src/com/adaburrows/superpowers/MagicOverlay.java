@@ -2,7 +2,6 @@ package com.adaburrows.superpowers;
 
 import java.io.IOException;
 
-import android.util.Log;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -31,14 +30,13 @@ class MagicOverlay extends View {
   int mCaptureSize;
   private byte[] mBytes;
   private int[] mPoints;
+  private int[] mCutoffs;
   private Rect mRect = new Rect();
   private Paint mForePaint = new Paint();
 
   // Constructor
   public MagicOverlay(Context context) {
     super(context);
-
-    Log.i(TAG, "Entering constructor");
 
     mBytes = null;
 
@@ -77,23 +75,17 @@ class MagicOverlay extends View {
     mPaintBlue.setTextSize(25);
         
     mBitmap = null;
-
-    Log.i(TAG, "Leaving constructor");
   }
 
   public void updateData(byte[] data, int samplingRate, int captureSize) {
-//    Log.i(TAG, "Entering updateData()");
     mBytes = data;
     mSamplingRate = samplingRate;
     mCaptureSize = captureSize;
     invalidate();
-//    Log.i(TAG, "Leaving updateData()");
   }
 
   @Override
   protected void onDraw(Canvas canvas) {
-    Log.i(TAG, "Entering onDraw()");
-
     int canvasWidth = canvas.getWidth();
     int canvasHeight = canvas.getHeight();
     int newImageWidth = canvasWidth;
@@ -101,37 +93,59 @@ class MagicOverlay extends View {
     int marginWidth = (canvasWidth - newImageWidth)/2;
 
     // Draw if we have a bitmap to draw on
-    if (mBitmap != null) {
-    }
+    if (mBitmap != null) { }
 
     // Draw a string
-    String imageMeanStr = "Superpower";
+    String imageMeanStr = "Superpowers";
     canvas.drawText(imageMeanStr, marginWidth+10-1, 30-1, mPaintRed);
     canvas.drawText(imageMeanStr, marginWidth+10+1, 30-1, mPaintGreen);
     canvas.drawText(imageMeanStr, marginWidth+10+1, 30+1, mPaintBlue);
     canvas.drawText(imageMeanStr, marginWidth+10-1, 30+1, mPaintBlack);
     canvas.drawText(imageMeanStr, marginWidth+10, 30, mPaintYellow);
 
-
+    // Waveform or FFT is in mBytes (byte array), this function gets called every 
+    // time there's new data.
     if (mBytes == null) {
         return;
     }
 
-    // Waveform or FFT is in mBytes (byte array), this function gets called every 
-    // time there's new data.
+    // Divide out input vector into 100 equal segments (for now)
+    mCutoffs = new int[101];
+    int skew = 9000;
+    for(int i = 0; i < 101; i++) {
+      mCutoffs[i] = (int)(
+                      512*(
+                        Math.pow(
+                          skew,
+                          ((float)i / 100)
+                        ) - 1
+                      ) / 
+                      (skew-1)
+                    );
+    }
 
-    Log.i(TAG, "mBytes.length: " + mBytes.length);
-    Log.i(TAG, "mCaptureSize, mSamplingRate: " + mCaptureSize + ", " + mSamplingRate );
-    Log.i(TAG, "first twelve mBytes: " + mBytes[0] + ", " + mBytes[1] + ", " + mBytes[2] + ", " + mBytes[3] + ", " + mBytes[4] + ", " + mBytes[5] + ", " + mBytes[6] + ", " + mBytes[7] + ", " + mBytes[8] + ", " + mBytes[9] + ", " + mBytes[10] + ", " + mBytes[11] );
-
-    // mPoints holds the 100 sample frequencies we're going to plot.
+    // mPoints holds the average real components of the 100 frequency bands 
+    // we're going to plot with circles.
     if (mPoints == null) {
         mPoints = new int[100];
     }
 
-    // Sample data: mPoints[0] = 255 ... mPoints[99] = 57
-    for(int i = 0; i < 99; i++) {
-      mPoints[i] = 255;// - (2*i);
+    // Find the largest real formant component for each frequency band
+    for(int i = 0; i < 100; i++) {
+      mPoints[i] = 0;
+      for(int j = mCutoffs[i]; j < mCutoffs[i+1]; j++){
+        if(mBytes[j*2] > mPoints[i]){
+          mPoints[i] = mBytes[j*2];
+        }
+      }
+    }
+
+    // Amplify the composite formant vector
+    for(int i = 0; i < 100; i++) {
+      mPoints[i] = mPoints[i] * 10;
+      if(mPoints[i] > 255){
+        mPoints[i] = 255;
+      }
     }
 
     // mRect is the bounding rectangle that contains the plot. Here, it's the whole screen.
@@ -144,13 +158,18 @@ class MagicOverlay extends View {
       int alpha = mPoints[i];
 
       // Hue: Scale 0..360
-      float hue = 420f-( (float)Math.pow(((float)i/(mPoints.length)),2.65) * 360f); 
+      float hue = 420f - ( 
+                    (float)Math.pow(
+                      ((float)i / (mPoints.length)), 
+                      2.65
+                    ) * 360f
+                  ); 
       if (hue > 360f) { hue = hue - 360f; }
 
       // Saturation: Scale 0..1
-      // TODO This corresponds to Timbre ("roughnss") between this and neighboring frequencies.
-      // If anyone knows how to calculate this at a reasonable frame rate, I'd love to hear about it.
-      // For now, I've just got this set at a decent "it looks alright" kind of value.
+      // TODO This actually corresponds to timbre ("roughnss") between neighboring frequencies.
+      // If anyone knows how to calculate this while preserving a reasonable frame rate, I'd love 
+      // to hear about it. For now, I've just got this set at a decent "it looks alright" value.
       float saturation = 0.8f;
       
       // Value: Scale 0..1
@@ -184,13 +203,19 @@ class MagicOverlay extends View {
 
       // Radius
       // Varies directly with hue, frequency, and value
-      float radius = (1 - ((float)i / ((mPoints.length) * 1.1f))) * ((mPoints[i] / 255f) * mRect.height() / 3);
+      float radius =  (1 - 
+                        (
+                          (float)i / 
+                          ((mPoints.length) * 1.1f)
+                        )
+                      ) * (
+                        (mPoints[i] / 255f) * 
+                        mRect.height() / 3
+                      );
 
+      // Draw this circle.
       canvas.drawCircle(cx, cy, radius, color);
     }
-
-
-    Log.i(TAG, "Leaving onDraw()");
 
     // Draw our parent
     super.onDraw(canvas);
