@@ -80,7 +80,28 @@ class MagicOverlay extends View {
   public void updateData(byte[] data, int samplingRate, int captureSize) {
     mBytes = data;
     mSamplingRate = samplingRate;
-    mCaptureSize = captureSize;
+    if(mCaptureSize != captureSize) {
+      mCaptureSize = captureSize;
+
+      // Divide input vector into 100 logarithmically equal segments
+      // based on cutoff skew
+      if(mCutoffs == null) {
+        mCutoffs = new int[101];
+      }
+      int cutoff_skew = 8000;
+      for(int i = 0; i < 101; i++) {
+        mCutoffs[i] = (int)(
+                        (mCaptureSize / 2) * 
+                        (
+                          Math.pow(
+                            cutoff_skew,
+                            ((float)i / 100)
+                          ) - 1
+                        ) / 
+                        (cutoff_skew-1)
+                      );
+      }
+    }
     invalidate();
   }
 
@@ -107,21 +128,6 @@ class MagicOverlay extends View {
     // time there's new data.
     if (mBytes == null) {
         return;
-    }
-
-    // Divide out input vector into 100 equal segments (for now)
-    mCutoffs = new int[101];
-    int skew = 9000;
-    for(int i = 0; i < 101; i++) {
-      mCutoffs[i] = (int)(
-                      512*(
-                        Math.pow(
-                          skew,
-                          ((float)i / 100)
-                        ) - 1
-                      ) / 
-                      (skew-1)
-                    );
     }
 
     // mPoints holds the average real components of the 100 frequency bands 
