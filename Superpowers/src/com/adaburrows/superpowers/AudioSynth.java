@@ -171,7 +171,7 @@ class AudioSynth implements Camera.PreviewCallback {
     int idx = 0;
     for (final double dVal : sample) {
         // scale to maximum amplitude
-        final short val = (short) ((dVal * 16384));
+        final short val = (short) ((dVal * 16384 / 10));
         generatedSnd[idx++] = val;
     }
     return numSamples;
