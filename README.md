@@ -13,15 +13,11 @@ Then update the project:
 
 		android update project -p .
 
-And build:
+And build. If successful, push to your phone to test:
 
-		ant debug
-
-Finally, push your build to your phone to test:
-
-		adb install bin/Superpowers-debug.apk
+		ant debug && adb install -r bin/Superpowers-debug.apk
 
 To see logging data:
 
-		adb logcat
+		adb logcat | grep [pattern]
 
