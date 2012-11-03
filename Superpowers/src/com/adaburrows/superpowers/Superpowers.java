@@ -28,8 +28,8 @@ public class Superpowers extends Activity {
   Camera mCamera;
   private MagicOverlay mOverlay;
   AudioRecord mAudioRecord;
-  AudioTrack mAudioTrack;
-  AudioTrack mRedSynthesizer, mGreenSynthesizer, mBlueSynthesizer;
+  AudioTrack mAudioTrack, mRedSynthesizer, mGreenSynthesizer, mBlueSynthesizer;
+  AudioSynth mAudioSynth;
   Visualizer mAudioVisualizer;
   MediaBridge mPlayer;
   int mAudioSessionId;
@@ -53,48 +53,31 @@ public class Superpowers extends Activity {
     super.onPause();
     if (mCamera != null) {
       mCamera.stopPreview();
-    }
-    if (mAudioRecord != null) {
-      mAudioRecord.stop();
-    }
-    if (mAudioTrack != null) {
-      mAudioTrack.stop();
-    }
-    if (mRedSynthesizer != null) {
-      mRedSynthesizer.stop();
-    }
-    if (mGreenSynthesizer != null) {
-      mGreenSynthesizer.stop();
-    }
-    if (mBlueSynthesizer != null) {
-      mBlueSynthesizer.stop();
-    }
-  }
-
-  @Override
-  protected void onStop() {
-    super.onStop();
-    if (mCamera != null) {
       mCamera.release();
       mCamera = null;
     }
     if (mAudioRecord != null) {
+      mAudioRecord.stop();
       mAudioRecord.release();
       mAudioRecord = null;
     }
     if (mAudioTrack != null) {
+      mAudioTrack.stop();
       mAudioTrack.release();
       mAudioTrack = null;
     }
     if (mRedSynthesizer != null) {
+      mRedSynthesizer.stop();
       mRedSynthesizer.release();
       mRedSynthesizer = null;
     }
     if (mGreenSynthesizer != null) {
+      mGreenSynthesizer.stop();
       mGreenSynthesizer.release();
       mGreenSynthesizer = null;
     }
     if (mBlueSynthesizer != null) {
+      mBlueSynthesizer.stop();
       mBlueSynthesizer.release();
       mBlueSynthesizer = null;
     }
@@ -107,22 +90,15 @@ public class Superpowers extends Activity {
   }
 
   @Override
-  protected void onStart() {
-    super.onStart();
+  protected void onResume() {
+    super.onResume();
 
-    mCamera = getCamera();
-    setupCamera();
-    setupAudio();
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
-
-    mPlayer = new MediaBridge(mAudioRecord, mAudioTrack, mAudioBufferSize);
-    new Thread(mPlayer).start();
-
-    mAudioTrack.play();
-    mRedSynthesizer.play();
-    mGreenSynthesizer.play();
-    mBlueSynthesizer.play();
-    mCameraView = new CameraView(this, mCamera, mRedSynthesizer, mGreenSynthesizer, mBlueSynthesizer);
+    mCamera = getCamera();
+    setupAudio();
+    setupCamera();
+    mAudioSynth = new AudioSynth(mCamera, mRedSynthesizer, mGreenSynthesizer, mBlueSynthesizer);
+    mCameraView = new CameraView(this, mCamera, mAudioSynth);
     mOverlay = new MagicOverlay(this);
     setContentView(mCameraView);
     addContentView(mOverlay, new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
@@ -167,7 +143,7 @@ public class Superpowers extends Activity {
       mAudioSampleRate,
       mAudioChannelInConfig,
       mAudioEncodingFormat
-    ) * 2;
+    ) * 3;
     
     mAudioRecord = new AudioRecord(
       MediaRecorder.AudioSource.MIC,
@@ -191,27 +167,27 @@ public class Superpowers extends Activity {
 
     mRedSynthesizer = new AudioTrack(
       AudioManager.STREAM_MUSIC,
-      mAudioSampleRate, 
+      mAudioSampleRate,
       mAudioChannelOutConfig,
-      mAudioEncodingFormat, 
+      mAudioEncodingFormat,
       mAudioBufferSize,
       AudioTrack.MODE_STREAM
     );
 
     mGreenSynthesizer = new AudioTrack(
       AudioManager.STREAM_MUSIC,
-      mAudioSampleRate, 
+      mAudioSampleRate,
       mAudioChannelOutConfig,
-      mAudioEncodingFormat, 
+      mAudioEncodingFormat,
       mAudioBufferSize,
       AudioTrack.MODE_STREAM
     );
 
     mBlueSynthesizer = new AudioTrack(
       AudioManager.STREAM_MUSIC,
-      mAudioSampleRate, 
+      mAudioSampleRate,
       mAudioChannelOutConfig,
-      mAudioEncodingFormat, 
+      mAudioEncodingFormat,
       mAudioBufferSize,
       AudioTrack.MODE_STREAM
     );
@@ -236,6 +212,14 @@ public class Superpowers extends Activity {
     } catch (Exception exception) {
       Log.d(TAG, "Error creating Visualizer: " + exception.getMessage());
     }
+
+    mPlayer = new MediaBridge(mAudioRecord, mAudioTrack, mAudioBufferSize);
+    new Thread(mPlayer).start();
+
+    mAudioTrack.play();
+    mRedSynthesizer.play();
+    mGreenSynthesizer.play();
+    mBlueSynthesizer.play();
   }
 
 }
