@@ -199,11 +199,10 @@ public class Superpowers extends Activity {
       mAudioVisualizer.setDataCaptureListener(
         new Visualizer.OnDataCaptureListener() {
 
-          public void onWaveFormDataCapture(Visualizer visualizer, byte[] bytes, int samplingRate) {
-          }
+          public void onWaveFormDataCapture(Visualizer visualizer, byte[] bytes, int samplingRate) {}
 
           public void onFftDataCapture(Visualizer visualizer, byte[] bytes, int samplingRate) {
-            mOverlay.updateData(bytes, samplingRate);
+            mOverlay.updateData(bytes, samplingRate, mAudioVisualizer.getCaptureSize());
           }
 
         },
