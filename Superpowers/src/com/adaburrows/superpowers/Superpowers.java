@@ -126,7 +126,7 @@ public class Superpowers extends Activity {
        */
       parameters.setPreviewSize(640, 480); //obs
       parameters.setPreviewFrameRate(30); //obs
-      parameters.setSceneMode(Camera.Parameters.SCENE_MODE_NIGHT);
+//      parameters.setSceneMode(Camera.Parameters.SCENE_MODE_NIGHT);
       parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
       // Use above parameters
       mCamera.setParameters(parameters);
