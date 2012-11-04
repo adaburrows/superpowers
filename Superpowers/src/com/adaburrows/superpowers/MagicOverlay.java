@@ -88,7 +88,7 @@ class MagicOverlay extends View {
       if(mCutoffs == null) {
         mCutoffs = new int[101];
       }
-      int cutoff_skew = 8000;
+      int cutoff_skew = 6000;
       for(int i = 0; i < 101; i++) {
         mCutoffs[i] = (int)(
                         (mCaptureSize / 2) * 
