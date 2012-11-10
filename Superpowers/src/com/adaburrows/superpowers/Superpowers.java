@@ -7,6 +7,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.hardware.Camera;
 import android.os.Bundle;
+import android.view.Display;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -124,7 +125,45 @@ public class Superpowers extends Activity {
       /*
        * This needs to be changed. I'm using two obsolete API calls because it was easier.
        */
-      parameters.setPreviewSize(640, 480); //obs
+      Display display = getWindowManager().getDefaultDisplay();
+      int w = display.getWidth();
+      int h = display.getHeight();
+      double aspect = (double)w/(double)h;
+      Camera.Size previewSize = null;
+      int previewPixels = 0;
+      for(Camera.Size s : parameters.getSupportedPreviewSizes()) {
+        // OK, here's the deal: We want to pick a preview resolution which:
+        //   * Matches the aspect of our display
+        //   * Is as large as possible for clarity
+        //   * Is not larger than we can display, to avoid extra computation
+        // We are foiled in this by the fact that cameras on android can be
+        // kind of annoying. For example, my phone has a 960x540 screen,
+        // but the camera captures at 960x544! Because of this some amount
+        // of fuzzy matching is needed.
+
+        if(s.width - 8 > w)
+          continue;
+        if(s.height - 8 > h)
+          continue;
+
+        double cam_aspect = (double)s.width/(double)s.height;
+        // 1% fuzz factor on aspect should be fine? (I hope...)
+        if(Math.abs(1.0 - cam_aspect/aspect) < 0.01) {
+          int cameraPixels = s.width * s.height;
+          if(cameraPixels > previewPixels) {
+            // This is bigger than the last one we found. Use it!
+            previewSize = s;
+            previewPixels = cameraPixels;
+          }
+        }
+      }
+      if(previewSize != null) {
+        parameters.setPreviewSize(previewSize.width, previewSize.height); //obs
+        Log.d(TAG, String.format("Using %d x % d", previewSize.width, previewSize.height));
+      } else {
+        // We didn't find a good match. Just fall back to 640x480
+        parameters.setPreviewSize(640, 480);
+      }
       parameters.setPreviewFrameRate(30); //obs
 //      parameters.setSceneMode(Camera.Parameters.SCENE_MODE_NIGHT);
       parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
