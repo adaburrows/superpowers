@@ -191,8 +191,6 @@ public class Superpowers extends Activity {
       mAudioEncodingFormat,
       mAudioBufferSize
     );
-    mAudioSessionId = mAudioRecord.getAudioSessionId();
-    Log.d(TAG, "Audio session ID: " + mAudioSessionId);
 
     mAudioTrack = new AudioTrack(
       AudioManager.STREAM_MUSIC,
@@ -200,9 +198,11 @@ public class Superpowers extends Activity {
       mAudioChannelOutConfig,
       mAudioEncodingFormat,
       mAudioBufferSize,
-      AudioTrack.MODE_STREAM,
-      mAudioSessionId
+      AudioTrack.MODE_STREAM
     );
+
+    mAudioSessionId = mAudioTrack.getAudioSessionId();
+    Log.d(TAG, "Audio session ID: " + mAudioSessionId);
 
     mRedSynthesizer = new AudioTrack(
       AudioManager.STREAM_MUSIC,
